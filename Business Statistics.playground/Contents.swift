@@ -68,8 +68,12 @@ extension Array where Element: Numeric {
     }
 }
 
+// MARK: - Descriptive Statistics
+// We use descriptive statistics to describe the observations that we've seen over time. This helps us to understand, statistically, what we should expect of a standard, repeating process, helping us to know what the range of outcomes should be. By giving us the average and the standard deviation, we can look at any individual outcome and know if it is expected, or if it's outside of the range of what we would expect, either good or bad, and give us an insight on when we should ask more questions about why something may have happened.
+
 // MARK – Basics – Mean and Standard Deviation calculations
 // We default to using Doubles
+// "Mean" and "Average" tend to mean the same thing. For all observations, take the sum and divide by the number of observations
 public func mean(_ x: [Double]) -> Double {
     guard x.count > 0 else {
         return 0
@@ -77,6 +81,11 @@ public func mean(_ x: [Double]) -> Double {
     return (x.reduce(0.0, +) / Double(x.count))
 }
 
+public func average(_ x: [Double]) -> Double {
+    return mean(x)
+}
+
+// Median calculates, for given sample, what number sits in between the upper 50% and the lower 50% of samples.
 public func median(_ x: [Double]) -> Double {
     if x.count == 0 { return 0 } else {
         if x.count % 2 == 0 {
@@ -94,16 +103,16 @@ public func median(_ x: [Double]) -> Double {
     }
 }
 
+// Mode is the number that appears most frequently in a given set of samples
 public func mode<T>(_ x: [T]) -> T {
     let counted = NSCountedSet(array: x)
     let max = counted.max { counted.count(for: $0) < counted.count(for: $1)}
     return max as! T
 }
 
-public func average(_ x: [Double]) -> Double {
-    return mean(x)
-}
 
+
+// MARK: - Variance summarizes the how wide the differences are between observations and the mean. This is just a step towards the standard deviation, which is more useful mathematically. Once we have the mean (average), we square the difference of each observation that we used to calculate the mean from the mean. We then add those all up to get the Sum of Squared Average Difference. We use the square here so that the negative differences don't offset the positive differences and just give us 0. This Sum of Squared Average Difference is then averaged itself to give us the Variance.
 public func sumOfSquaredAvgDiff(_ values: [Double]) -> Double {
     return values.map{ pow($0 - mean(values), 2.0)}.reduce(0, {$0 + $1})
 }
@@ -114,10 +123,12 @@ public enum Population: String {
     case sample
 }
 
+// MARK: - The variance, when we have the entire population of values and not a sample, is the Sum of Squared Average Difference, averaged over the total number of observations
 public func varianceP(_ values: [Double]) -> Double {
     return sumOfSquaredAvgDiff(values)/Double(values.count)
 }
-
+ 
+// When we are working with a subset (sample) of the total number of observations, we use the sum of squared average differences, but divide it by one fewer than the number of observations. If there are fewer than 30 observations in the sample, we use the T-Distribution of the Variance (varianceTDist)
 public func varianceS(_ values: [Double]) -> Double {
     if values.count < 30 {
         return varianceTDist(values)
@@ -136,22 +147,26 @@ public func variance(_ values: [Double], _ pop: Population = .sample) -> Double 
 }
 
 public func varianceTDist(_ values: [Double]) -> Double {
-    if values.count < 30 { return variance(values) }
+    if values.count > 30 { return variance(values) }
     return Double((values.count - 1) / (values.count - 3))
 }
 
 public func tStatistic(x: Double, mean: Double = 0.0, stdErr: Double = 1.0) -> Double {
     return ((x - mean) / stdErr)
 }
-// Standard deviation for a population, used when you have all observations of a set
+
+//MARK: - Standard Deviation helps us understand the dispersion of our observations. This is critical, because if we have a mean observation of 100, that could be because we have 1000 observations that are between 95 and 105, or it could be because we have 1000 observations between 80 and 120. This allows us to know when a single observation is outside of what we should expect to be the "natural" range, given the data we've already collected. If we saw a "110" come through in the first scenario (a typical range between 95 - 105), we might have some questions, but if it were in the second scenario (80-120), we probably wouldn't care.
+
+// Standard deviation for a population, used when you have all observations of a set, is just the square root of the population variance calculated above.
 public func stdDevP(_ values: [Double]) -> Double {
     return sqrt(varianceP(values))
 }
 
-// Standard deviation for a sample, used when you do not have all observations of the population
+// Standard deviation for a sample, used when you do not have all observations of the population, e.g. last 30 day calculations is the square root of the *sample* variance calculated above.
 public func stdDevS(_ values: [Double]) -> Double {
     return sqrt(varianceS(values))
 }
+
 
 public func stdDev(_ values: [Double], _ pop: Population = .sample) -> Double {
     switch pop {
@@ -166,6 +181,9 @@ public func stdDevTDist(_ values: [Double]) -> Double {
     return sqrt(varianceTDist(values))
 }
 
+
+// MARK: - Advanced Descriptors
+// Advanced Descriptors give us a better sense of the "shape" of the overall data, helping us understand if outliers are making our basic descriptors not tell the whole story. Skew helps us identify cases where maybe most results are on one side of the average, but a really big outlier on the other side of the average is changing the numbers (e.g. 999 observations of 1, but one observation of 100,000 makes your average 1,001)
 public func coefficientOfSkew(mean: Double, median: Double, stdDev: Double) -> Double {
     return (3 * (mean - median))/stdDev
 }
@@ -469,7 +487,7 @@ extension Int {
 
 public func permutations(_ n: Int, r: Int) -> Int {
     let perms = n - r
-    return n.factorial() / (perms).factorial()
+    return n.factorial() / perms.factorial()
 }
 
 public func combinations(_ n: Int, r: Int) -> Int {
@@ -582,10 +600,10 @@ extension TimeInterval {
 
 public struct Tests {
     // A very simplified order class, used as a data source to verify calculations
-    public class Order: Codable {
+    public class Order: Codable, ObservableObject {
         let vendor: String
-        let orderDateString: String
-        let shipDateString: String
+        @Published var orderDateString: String
+        @Published var shipDateString: String
         let orderItems: Double
         let orderValue: Double
         let formatter = DateFormatter()
@@ -626,8 +644,8 @@ public struct Tests {
         }
     }
 
-    public class OrderStore: Codable {
-        let orders: [Order]
+    public class OrderStore: Codable, ObservableObject {
+        @Published var orders: [Order]
         
         init(_ orders: [Order]) {
             self.orders = orders
