@@ -204,6 +204,10 @@ public func descriptives(_ values: [Double]) -> (mean: Double, stdDev: Double, s
     return (mu, stDev, skew, coVar)
 }
 
+extension Array where Element: Numeric {
+    var description: String { let desc = descriptives(self.map({$0 as! Double})); return "µ:\(desc.mean)\t∂:\(desc.stdDev)\tsk:\(desc.skew)\tCv:\(desc.cVar)"}
+}
+
 public func PercentileLocation<T: Comparable>(_ percentile: Int, values: [T]) -> T {
     return values.sorted()[(values.count + 1)*(percentile / 100)]
 }
